@@ -8,12 +8,11 @@ nlp = spacy.load('en_core_web_sm')
 model = SentenceTransformer('all-MiniLM-L6-v2')
 gpt2_model_name = 'gpt2'
 tokenizer = GPT2Tokenizer.from_pretrained(gpt2_model_name)
-gpt2_model = GPT2LMHeadModel.from_pretrained(gpt2_model_name).to('cuda')  # Move model to GPU
-
-with open("green day.txt", 'r') as file:
-    file_content = file.read()
-
-token_doc = nlp(file_content)
+gpt2_model = GPT2LMHeadModel.from_pretrained(gpt2_model_name)
+ 
+# chunking the files
+with open('green day.txt', 'r') as file_content:
+    token_doc = nlp(file_content)
 chunk = []
 current = []
 count = 0
@@ -30,35 +29,29 @@ for token in token_doc:
 if current:
     chunk.append(' '.join(current))
 
-def encode_chunks(chunks, model):
-    embeddings = model.encode(chunks)
-    return np.array(embeddings).astype(np.float32)
+# embedding the file into vectors
+embed_file = model.encode(chunk)
 
-encoded_chunks = encode_chunks(chunk, model)
-
-dimension = encoded_chunks.shape[1]
+#indexing the embeds using faiss
+embed_file = np.array(embed_file)
+dimension = embed_file.shape[1]
 index = faiss.IndexFlatL2(dimension)
-gpu_res = faiss.StandardGpuResources()
-gpu_index = faiss.index_cpu_to_gpu(gpu_res, 0, index)
-gpu_index.add(encoded_chunks)
+index.add(embed_file)
+faiss.write_index(index, 'embed_index.faiss')
 
-def search_index(query, model, gpu_index):
-    query_embedding = model.encode([query])
-    query_embedding = np.array(query_embedding).astype(np.float32)
-    k = 3 
-    distances, indices = gpu_index.search(query_embedding, k)
-    return indices[0]  
+# getting user prompt
+query = input("Enter user prompt:")
+query_embedding = model.encode([query])
 
-query = input("Enter user input: ")
-relevant_indices = search_index(query, model, gpu_index)
-relevant_chunks = [chunk[i] for i in relevant_indices]
-
+# checking the indices/vectors of input query with the text file query
+k = 3  
+distances, indices = index.search(query_embedding, k)
+relevant_chunks = [chunk[i] for i in indices[0]]
 augmented_input = query + " " + " ".join(relevant_chunks)
 
-def generate_response(prompt, model, tokenizer):
-    inputs = tokenizer.encode(prompt, return_tensors='pt').to('cuda')
-    outputs = model.generate(inputs, max_length=150, num_return_sequences=1)
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-response = generate_response(augmented_input, gpt2_model, tokenizer)
-print("Response:", response)
+# generating response using local model
+inputs = tokenizer.encode(augmented_input, return_tensors='pt')
+output = model.generate(inputs, max_length=150, num_return_sequences=1)
+generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+print(generated_text)
