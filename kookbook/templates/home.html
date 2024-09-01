@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>KookBook</title>
+</head>
+<body>
+    <header>
+        <h1 id="heading">CookBook</h1>
+    </header>
+    <section>
+        <p id="content">A small project which repsonds with suitable dishes when provided with a prompt, its made using Spacy and Pandas.</p>
+        <form action="/" method="post">
+            <label for="prompt">Enter your Promt</label>
+                <input type="text" id="prompt" name="prompt" required placeholder="enter your prompt">
+            </label>
+        </form>
+        <h4>{{ prompt_resp }}</h4>
+    </section>
+    <footer>
+        <div>
+            Wait for sometime for the reesponse to be generated.
+            @adithyaps all rights reserved.
+        </div>
+    </footer>
+</body>
+</html>
